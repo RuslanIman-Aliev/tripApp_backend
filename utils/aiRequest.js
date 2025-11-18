@@ -1,3 +1,6 @@
+// eslint-disable-next-line import/extensions
+import { ai } from "../services/ai/aiService.js";
+
 /* eslint-disable import/prefer-default-export */
 export const getPrompt = (trip) => `
 You are a professional travel planner.
@@ -53,12 +56,12 @@ STRICT JSON FORMAT (no text before or after):
 Rules:
 1. Use only real places that exist in this city.
 2. Place names must be accurate enough to be used in Google Places API.
-3. Use logical time slots for activities.
-4. Include 3–6 activities per day.
-5. The JSON MUST be valid and follow the structure perfectly.
-6. If the user has low budget — avoid expensive places.
-
-  `;
+3. For each place, include **3–5 photo URLs** in the photoLinks array (or leave empty if no photos available).
+4. Use logical time slots for activities.
+5. Include 3–6 activities per day.
+6. The JSON MUST be valid and follow the structure perfectly.
+7. If the user has low budget — avoid expensive places.
+`;
 
 export function extractJSON(text) {
   const match = text.match(/\{[\s\S]*\}/);
@@ -70,4 +73,19 @@ export function extractJSON(text) {
   json = json.replace(/,\s*]/g, "]");
 
   return json;
+}
+
+export async function generateTripProgram(prompt) {
+  const result = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+  });
+
+  const text =
+    result?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
+
+  const cleaned = extractJSON(text);
+  if (!cleaned) throw new Error("Invalid JSON from AI");
+
+  return JSON.parse(cleaned);
 }
